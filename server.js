@@ -19,39 +19,11 @@ let users = [
     { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'admin' }
 ];
 
-// CORS configuration - Allow all origins for maximum accessibility
-const corsOptions = {
-    origin: '*', // Allow all origins
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    credentials: true, // Allow cookies to be sent
-    optionsSuccessStatus: 200,
-    preflightContinue: false,
-    maxAge: 86400 // Cache preflight requests for 24 hours
-};
-
-// Apply CORS middleware globally
-app.use(cors(corsOptions));
-
-// Handle preflight requests for all routes
-app.options('*', cors(corsOptions));
-
-// Additional security headers to ensure accessibility
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    next();
-});
-
+// Middleware
+app.use(cors({
+    origin: isProduction ? process.env.ALLOWED_ORIGINS?.split(',') || '*' : '*',
+    credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -477,11 +449,6 @@ app.get('/', (req, res) => {
         name: "Express.js Backend API",
         version: "1.0.0",
         description: "A feature-rich Express.js backend for Back4app",
-        cors: {
-            enabled: true,
-            allowedOrigins: "*",
-            methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-        },
         endpoints: {
             todos: {
                 "GET /api/todos": "Get all todos (with filtering and pagination)",
@@ -556,10 +523,9 @@ if (isProduction && cluster.isMaster) {
     });
 } else {
     // Workers share the TCP connection
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, () => {
         console.log(`Worker ${process.pid} started - Server running on port ${PORT}`);
         console.log(`Documentation available at http://localhost:${PORT}`);
-        console.log(`CORS is enabled for all origins - API accessible from any frontend`);
     });
 
     // Graceful shutdown
